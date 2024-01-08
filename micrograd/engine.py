@@ -4,12 +4,14 @@ class Value:
 
     def __init__(self, data, _children=(), _op=''):
         self.data = data
-        self.grad = 0
-        # internal variables used for autograd graph construction
-        self._backward = lambda: None
-        self._prev = set(_children)
-        self._op = _op # the op that produced this node, for graphviz / debugging / etc
+        self.grad = 0     # dL/da: L是输出值，a是当前值
 
+        # internal variables used for autograd graph construction
+        self._backward = lambda: None  # 反向传播函数，dL/dout -> dL/din (based on chain rule)
+        self._prev = set(_children) # 前驱节点
+        self._op = _op # the op that produced this node, for graphviz(可视化) / debugging / etc
+
+    # it will be called when Value Objects are added
     def __add__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data + other.data, (self, other), '+')
@@ -81,6 +83,7 @@ class Value:
     def __rsub__(self, other): # other - self
         return other + (-self)
 
+    # python can't do 2*a, so it will call __rmul__
     def __rmul__(self, other): # other * self
         return self * other
 
@@ -89,6 +92,7 @@ class Value:
 
     def __rtruediv__(self, other): # other / self
         return other * self**-1
-
+    
+    # 魔术方法，当一个对象被打印时,实际上是在调用它的__repr__()方法
     def __repr__(self):
         return f"Value(data={self.data}, grad={self.grad})"
