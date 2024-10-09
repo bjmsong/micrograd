@@ -4,25 +4,26 @@ class Value:
 
     def __init__(self, data, _children=(), _op=''):
         self.data = data
-        self.grad = 0     # dL/da: L是输出值，a是当前值
+        self.grad = 0     # dL / d self, L是最后一步的输出
 
-        # internal variables used for autograd graph construction
-        self._backward = lambda: None  # 反向传播函数，dL/dout -> dL/din (based on chain rule)
+        # private variables used for autograd graph construction
+        self._backward = lambda: None  # function，execute backward pass，if z=f(x)，x_grad = z_grad * dz/dx
         self._prev = set(_children) # 前驱节点
         self._op = _op # the op that produced this node, for graphviz(可视化) / debugging / etc
 
-    # it will be called when Value Objects are added
+    # self + other
     def __add__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data + other.data, (self, other), '+')
 
         def _backward():
-            self.grad += out.grad
+            self.grad += out.grad  # 用累加是因为可能跟多个out关联
             other.grad += out.grad
         out._backward = _backward
 
         return out
 
+    # self * other
     def __mul__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data * other.data, (self, other), '*')
@@ -34,6 +35,7 @@ class Value:
 
         return out
 
+    # self ** other
     def __pow__(self, other):
         assert isinstance(other, (int, float)), "only supporting int/float powers for now"
         out = Value(self.data**other, (self,), f'**{other}')
@@ -83,7 +85,6 @@ class Value:
     def __rsub__(self, other): # other - self
         return other + (-self)
 
-    # python can't do 2*a, so it will call __rmul__
     def __rmul__(self, other): # other * self
         return self * other
 
@@ -93,6 +94,5 @@ class Value:
     def __rtruediv__(self, other): # other / self
         return other * self**-1
     
-    # 魔术方法，当一个对象被打印时,实际上是在调用它的__repr__()方法
-    def __repr__(self):
+    def __repr__(self):  # print(self)
         return f"Value(data={self.data}, grad={self.grad})"
